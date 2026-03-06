@@ -5,7 +5,7 @@ from pathlib import Path
 
 import requests
 from flask import Flask, jsonify
-from ddtrace import statsd
+from datadog import statsd
 
 # Configure structured logging for Datadog
 logging.basicConfig(
@@ -106,6 +106,7 @@ def work():
 @app.get("/error")
 def error():
     logger.error("Error endpoint triggered - about to raise exception", extra={"user": "demo"})
+    statsd.increment("endpoint.error.triggers", tags=["endpoint:error"])
     raise RuntimeError("Intentional demo exception to show error traces")
 
 
