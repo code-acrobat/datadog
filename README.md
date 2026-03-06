@@ -8,6 +8,8 @@ This demo app shows Datadog APM traces for a Python service using **auto-instrum
 - SQLite query spans
 - Outbound HTTP request spans (`requests`)
 - Error trace endpoint
+- **Custom metrics** sent via StatsD (works with free tier)
+- **Demo client** for automated traffic generation
 
 ## Prerequisites
 
@@ -66,6 +68,12 @@ ddtrace-run python app.py
 ./run_demo.sh
 ```
 
+**Or run with automated traffic generation:**
+```bash
+./run_demo_with_traffic.sh
+```
+This starts both the server and client, generating continuous traffic with distributed traces across two services.
+
 App listens on `http://localhost:8000`.
 
 ## 4) Generate traces
@@ -79,10 +87,41 @@ curl http://localhost:8000/work
 curl http://localhost:8000/error
 ```
 
-Then open Datadog APM and filter by service: `python-apm-demo`.
+**Or use the automated demo client:**
+```bash
+# Run for 60 seconds (default)
+python demo_client.py
+
+# Run for custom duration (in seconds)
+python demo_client.py 120
+```
+
+The demo client runs as a separate service (`demo-client`) and creates distributed traces that span both the client and server services. It logs progress every 10 requests.
+
+## 5) View metrics in Datadog
+
+The app sends custom metrics via StatsD to your Datadog agent:
+
+- `endpoint.*.hits` - Counter for each endpoint access
+- `database.insert.success/error` - Database operation counters
+- `database.hits.total` - Gauge showing total database records
+- `http.request.success/error` - HTTP request counters
+
+In Datadog Metrics Explorer, search for these metrics filtered by:
+- `service:python-apm-demo`
+- `env:demo`
+
+## 6) View distributed traces
+
+When using the demo client, you'll see **distributed traces** that span across services:
+- **demo-client** service: Client-side request spans
+- **python-apm-demo** service: Server-side processing spans
+
+In Datadog APM → Traces, you can see the full request flow from client to server, including database and HTTP operations within the server spans.
 
 ## Notes
 
 - `/work` creates DB and HTTP spans under one request trace.
 - `/error` intentionally returns a 500 to demonstrate error tracing.
 - Auto-instrumentation is provided by `ddtrace-run`; app code does not call `patch_all()`.
+- Custom metrics work with Datadog's free tier (metrics enabled).

@@ -25,4 +25,4 @@ echo ""
 
 # Run the Flask app with auto-instrumentation
 echo "Starting Flask app with ddtrace-run..."
-ddtrace-run python app.py
+/home/coder/datadog/.venv/bin/ddtrace-run python app.py
