@@ -43,7 +43,27 @@ If your agent is remote, set `DD_AGENT_HOST` accordingly.
 ## 3) Run with auto-instrumentation
 
 ```bash
+# Activate virtual environment (if not already activated)
+source .venv/bin/activate
+
+# Set Datadog config
+export DD_SERVICE=python-apm-demo
+export DD_ENV=demo
+export DD_VERSION=1.0.0
+export DD_TRACE_ENABLED=true
+export DD_LOGS_INJECTION=true
+
+# Use this when Datadog Agent is local (default):
+export DD_AGENT_HOST=127.0.0.1
+export DD_TRACE_AGENT_PORT=8126
+
+# Run with auto-instrumentation
 ddtrace-run python app.py
+```
+
+**Or use the convenience script:**
+```bash
+./run_demo.sh
 ```
 
 App listens on `http://localhost:8000`.

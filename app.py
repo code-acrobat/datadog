@@ -5,6 +5,7 @@ from pathlib import Path
 
 import requests
 from flask import Flask, jsonify
+from ddtrace import statsd
 
 # Configure structured logging for Datadog
 logging.basicConfig(
@@ -15,6 +16,10 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 DB_PATH = Path(__file__).with_name("demo.db")
+
+# Initialize StatsD client for custom metrics (connects to local agent on port 8125)
+# This works with Datadog free tier (metrics enabled)
+statsd.constant_tags = ["env:demo", "service:python-apm-demo"]
 
 
 def init_db() -> None:
@@ -37,6 +42,7 @@ def init_db() -> None:
 @app.get("/")
 def index():
     logger.info("Index endpoint accessed")
+    statsd.increment("endpoint.index.hits", tags=["endpoint:index"])
     return jsonify(
         {
             "message": "Datadog APM Python demo",
@@ -48,6 +54,7 @@ def index():
 @app.get("/health")
 def health():
     logger.debug("Health check endpoint accessed")
+    statsd.increment("endpoint.health.hits", tags=["endpoint:health"])
     return {"status": "ok"}
 
 
@@ -55,6 +62,7 @@ def health():
 def work():
     # Simulate mixed work so APM shows multiple spans.
     logger.info("Work endpoint called - starting database operation")
+    statsd.increment("endpoint.work.hits", tags=["endpoint:work"])
     
     conn = sqlite3.connect(DB_PATH)
     try:
@@ -63,10 +71,13 @@ def work():
             ("/work", time.time()),
         )
         conn.commit()
+        statsd.increment("database.insert.success", tags=["operation:insert"])
         logger.info("Database insert successful")
         rows = conn.execute("SELECT COUNT(*) FROM hits").fetchone()
+        statsd.gauge("database.hits.total", rows[0], tags=["operation:count"])
         logger.info(f"Total hits in database: {rows[0]}")
     except Exception as e:
+        statsd.increment("database.insert.error", tags=["operation:insert"])
         logger.error(f"Database error: {str(e)}", exc_info=True)
         raise
     finally:
@@ -76,8 +87,10 @@ def work():
         logger.info("Making HTTP request to httpbin.org")
         response = requests.get("https://httpbin.org/delay/0.1", timeout=2)
         response.raise_for_status()
+        statsd.increment("http.request.success", tags=["status:200"])
         logger.info(f"HTTP request successful: {response.status_code} from {response.url}")
     except requests.RequestException as e:
+        statsd.increment("http.request.error", tags=["status:error"])
         logger.warning(f"HTTP request failed: {str(e)}")
         raise
 
