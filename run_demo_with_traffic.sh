@@ -57,6 +57,7 @@ echo "Starting automated client (will run for 60 seconds)..."
 echo "Press Ctrl+C to stop"
 # Start the client with ddtrace instrumentation
 DD_SERVICE=demo-client DD_ENV=demo DD_VERSION=1.0.0 /home/coder/datadog/.venv/bin/ddtrace-run python demo_client.py &
+
 CLIENT_PID=$!
 
 # Wait for client to finish

@@ -2,17 +2,56 @@ import logging
 import sqlite3
 import time
 from pathlib import Path
+import sys
 
 import requests
 from flask import Flask, jsonify
 from datadog import statsd
+from pythonjsonlogger import jsonlogger
+from ddtrace import tracer
 
-# Configure structured logging for Datadog
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+# Configure JSON logging for Datadog
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+# JSON handler for stdout
+json_handler = logging.StreamHandler(sys.stdout)
+json_formatter = jsonlogger.JsonFormatter(
+    fmt='%(asctime)s %(levelname)s %(name)s %(message)s %(trace_id)s %(span_id)s',
+    rename_fields={'asctime': '@timestamp', 'levelname': 'level'}
 )
-logger = logging.getLogger(__name__)
+json_handler.setFormatter(json_formatter)
+logger.addHandler(json_handler)
+
+# File handler for server logs
+file_handler = logging.FileHandler('/tmp/python-apm-demo.log')
+file_handler.setFormatter(json_formatter)
+logger.addHandler(file_handler)
+
+# Also add a handler for Flask/werkzeug
+flask_logger = logging.getLogger('werkzeug')
+flask_logger.setLevel(logging.INFO)
+if not flask_logger.handlers:
+    flask_logger.addHandler(json_handler)
+    flask_logger.addHandler(file_handler)
+
+# Custom filter to inject trace context into logs
+class DatadogTraceFilter(logging.Filter):
+    def filter(self, record):
+        # Get current trace and span IDs from ddtrace
+        span = tracer.current_span()
+        if span:
+            record.trace_id = span.trace_id
+            record.span_id = span.span_id
+        else:
+            record.trace_id = 0
+            record.span_id = 0
+        return True
+
+# Apply the filter to all handlers
+trace_filter = DatadogTraceFilter()
+for handler in logger.handlers:
+    handler.addFilter(trace_filter)
 
 app = Flask(__name__)
 DB_PATH = Path(__file__).with_name("demo.db")

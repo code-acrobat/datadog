@@ -8,10 +8,12 @@ import random
 import time
 import requests
 import logging
+import sys
 from typing import List
 
 # Import ddtrace for instrumentation and trace propagation
 from ddtrace import tracer, patch_all
+from pythonjsonlogger import jsonlogger
 
 # Enable auto-instrumentation for requests
 patch_all()
@@ -25,6 +27,20 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+# Add JSON handler for stdout
+json_handler = logging.StreamHandler(sys.stdout)
+json_formatter = jsonlogger.JsonFormatter(
+    fmt='%(asctime)s %(levelname)s %(name)s %(message)s %(trace_id)s %(span_id)s',
+    rename_fields={'asctime': '@timestamp', 'levelname': 'level'}
+)
+json_handler.setFormatter(json_formatter)
+logger.addHandler(json_handler)
+
+# File handler for client logs
+file_handler = logging.FileHandler('/tmp/demo-client.log')
+file_handler.setFormatter(json_formatter)
+logger.addHandler(file_handler)
 
 # Base URL for the demo app
 BASE_URL = "http://localhost:8000"
